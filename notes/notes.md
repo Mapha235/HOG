@@ -19,6 +19,6 @@
 **Presentation ideas**
 - describe the goal of HOG
 - give a general idea of useful features 
-- define a gradient, gradient image
+- define a gradient, gradient image, show the vector, how magnitude and direction are encoded
 - introduce the feature extraction and object detection chain
 - 
