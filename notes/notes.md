@@ -30,3 +30,9 @@
 - define a gradient, gradient image, show the vector, how magnitude and direction are encoded
 - introduce the feature extraction and object detection chain
 - 
+
+- **Links**
+  - https://iq.opengenus.org/object-detection-with-histogram-of-oriented-gradients-hog/
+  - https://www.analyticsvidhya.com/blog/2019/09/feature-engineering-images-introduction-hog-feature-descriptor/
+  - https://towardsdatascience.com/hog-histogram-of-oriented-gradients-67ecd887675f
+  - https://learnopencv.com/histogram-of-oriented-gradients/
