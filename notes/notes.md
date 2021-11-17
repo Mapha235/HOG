@@ -36,3 +36,4 @@
   - https://www.analyticsvidhya.com/blog/2019/09/feature-engineering-images-introduction-hog-feature-descriptor/
   - https://towardsdatascience.com/hog-histogram-of-oriented-gradients-67ecd887675f
   - https://learnopencv.com/histogram-of-oriented-gradients/
+  - http://www.ee.unlv.edu/~b1morris/ecg782/sp14/docs/HOG_MARZIEH.pdf
