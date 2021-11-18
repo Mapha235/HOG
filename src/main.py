@@ -106,14 +106,22 @@ def cells(img):
     x, y = (8, 8)
 
 
-def orientation_binning(magnitudes, orientations, nr_of_bins=9, steps=8):
-    if magnitudes.shape != orientations.shape:
+def orientation_binning(magnitudes, orientations, nr_of_bins=9, cell_size=8):
+    y, x = magnitudes.shape
+
+    if magnitudes.shape != orientations.shape or 2*x != y:
         return 1
 
     hist = np.zeros(nr_of_bins)
-    x, y = magnitudes.shape
-    for i in range(nr_of_bins):
-        magnitudes[:,:,steps]
+    steps_y = int(y / cell_size)
+    steps_x = int(x / cell_size)
+     
+    for i in range(steps_x):
+        for j in range(steps_y):
+            # print(f"{i},{j}. ({i*cell_size},{(i+1)*cell_size})")
+            temp = magnitudes[i:(i+1)*cell_size, j:(j+1)*cell_size]
+            print(temp)
+            
 
 
 def main():
@@ -127,14 +135,13 @@ def main():
     # img[100: -100, 80: -80] = 1
 
     img = preprocess(img)
-    print(img.shape)
     # plot(img, 'resized')
 
     # grad_red, grad_green, grad_blue, grad_mag = compute_gradients(img)
     grad_mag, grad_ang = compute_gradients(img)
     # plot(grad_mag, 'grad opt')
     # plot(grad_ang, 'grad ang')
-    print(grad_mag.shape)
+    orientation_binning(grad_mag, grad_ang)
 
     # plot(convolve_sobel(img), 'convolve')
     plt.show()
