@@ -2,7 +2,6 @@ import scipy.ndimage as nd
 import scipy.signal
 import matplotlib.pyplot as plt
 from PIL import Image
-from skimage.transform import resize
 
 import numpy as np
 import cv2
@@ -36,10 +35,10 @@ def convolve_sobel(img: np.ndarray):
                          [0],
                          [1]])
 
-    res_x = scipy.signal.convolve2d(img, kernel_x, mode='same')
-    res_y = scipy.signal.convolve2d(img, kernel_y, mode='same')
+    res_x = scipy.signal.convolve2d(img[:, :, 0], kernel_x, mode='same')
+    res_y = scipy.signal.convolve2d(img[:, :, 0], kernel_y, mode='same')
 
-    return np.hypot(res_x,res_y)
+    return np.hypot(res_x, res_y)
 
 
 def load_image(infilename):
@@ -63,7 +62,7 @@ def l2_norm():
 
 def compute_gradients(img):
     '''
-    Returns the horizontal and vertical image gradients
+    Returns the magnitudes and angles
     '''
     kernel_x = np.array([[-1, 0, 1]])
     kernel_y = np.array([[-1],
@@ -88,44 +87,55 @@ def compute_gradients(img):
     for i in range(height):
         for j in range(width):
             magnitudes = []
-            for k in range(3):
+            for k in range(channels):
                 magnitudes.append(
                     np.sqrt(grad_x[k][i][j]**2 + grad_y[k][i][j]**2))
 
-            res_magn[i][j] = max(magnitudes)
+            index_max = max(range(len(magnitudes)), key=magnitudes.__getitem__)
+            res_magn[i, j] = magnitudes[index_max]
+
+            res_ang[i, j] = abs(np.arctan2(
+                grad_y[index_max][i][j], grad_x[index_max][i][j]))
+            res_ang[i, j] = (res_ang[i, j] * 360) / (2*np.pi)
             # res_ang[i, j] =
-    return np.hypot(grad_x[0], grad_y[0]), np.hypot(grad_x[1], grad_y[1]), np.hypot(grad_x[2], grad_y[2]), res_magn
+    # return np.hypot(grad_x[0], grad_y[0]), np.hypot(grad_x[1], grad_y[1]), np.hypot(grad_x[2], grad_y[2]), res_magn
+    return res_magn, res_ang
+
+
+def cells(img):
+    x, y = (8, 8)
+
+
+def orientation_binning(magnitudes, orientations, nr_of_bins=9, steps=8):
+    if magnitudes.shape != orientations.shape:
+        return 1
+
+    hist = np.zeros(nr_of_bins)
+    x, y = magnitudes.shape
+    for i in range(nr_of_bins):
+        magnitudes[:,:,steps]
 
 
 def main():
-    img = cv2.imread('./data/woman2.png')
+    img = cv2.imread('./data/man.png')
+    # img = cv2.imread('./data/pedestrians.jpg')
     # plot(img, 'normal')
 
     # Create a black image
-    img = np.zeros((640, 480, 3))
-    # ... and make a white rectangle in it
-    img[100: -100, 80: -80] = 1
+    # img = np.zeros((640, 480, 3))
+    # # ... and make a white rectangle in it
+    # img[100: -100, 80: -80] = 1
 
     img = preprocess(img)
-    plot(img, 'resized')
+    print(img.shape)
+    # plot(img, 'resized')
 
-    grad_red, grad_green, grad_blue, grad_opt = compute_gradients(img)
-    plot(grad_opt, 'grad opt')
+    # grad_red, grad_green, grad_blue, grad_mag = compute_gradients(img)
+    grad_mag, grad_ang = compute_gradients(img)
+    # plot(grad_mag, 'grad opt')
+    # plot(grad_ang, 'grad ang')
+    print(grad_mag.shape)
 
-    sx = nd.sobel(img, axis=0, mode='constant')
-    sy = nd.sobel(img, axis=1, mode='constant')
-
-    # plot(sx, 'Sobel X')
-    # plot(sy, 'Sobel Y')
-
-    # hypotenuse == root of squared sum == magnitude
-    sobel = np.hypot(sx, sy)
-    # print(sobel.dtype)
-    # sobel = nd.sobel(img,axis=1, mode ='constant')
-    # plot(sx, 'sobel x')
-    # plot(sy, 'Sobel y')
-    # plot((sobel).astype(np.uint8), 'SSD')
-    plot(sobel, 'SSD')
     # plot(convolve_sobel(img), 'convolve')
     plt.show()
 
