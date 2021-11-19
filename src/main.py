@@ -59,6 +59,8 @@ def preprocess(img: np.ndarray, normalize=False):
 def l2_norm():
     pass
 
+# GRADIENT COMPUTATION------------------------------------------------------------------------------------------------
+
 
 def compute_gradients(img):
     '''
@@ -101,12 +103,13 @@ def compute_gradients(img):
     # return np.hypot(grad_x[0], grad_y[0]), np.hypot(grad_x[1], grad_y[1]), np.hypot(grad_x[2], grad_y[2]), res_magn
     return res_magn, res_ang
 
-
-def cells(img):
-    x, y = (8, 8)
+# ORIENTATION BINNING------------------------------------------------------------------------------------------------
 
 
-def orientation_binning(magnitudes, orientations, nr_of_bins=9, cell_size=8):
+def cells(magnitudes, orientations, nr_of_bins=9, cell_size=8):
+    '''
+    divides the image into cells of size cell_size x cell_size
+    '''
     y, x = magnitudes.shape
 
     if magnitudes.shape != orientations.shape or 2*x != y:
@@ -115,22 +118,75 @@ def orientation_binning(magnitudes, orientations, nr_of_bins=9, cell_size=8):
     hist = np.zeros(nr_of_bins)
     steps_y = int(y / cell_size)
     steps_x = int(x / cell_size)
-     
+
+    cells_mag = []
+    cells_ang = []
+
     for i in range(steps_x):
         for j in range(steps_y):
-            # print(f"{i},{j}. ({i*cell_size},{(i+1)*cell_size})")
-            temp = magnitudes[i:(i+1)*cell_size, j:(j+1)*cell_size]
-            print(temp)
-            
+            # print(f"{i},{j}. ({i*cell_size},{(i+1)*cell_size}), ({j*cell_size},{(j+1)*cell_size})")
+            cells_mag.append(
+                magnitudes[j*cell_size:((j+1)*cell_size), i*cell_size:((i+1)*cell_size)])
+            cells_ang.append(
+                orientations[j*cell_size:((j+1)*cell_size), i*cell_size:((i+1)*cell_size)])
+
+    return cells_mag, cells_ang
 
 
+def interpolate(magnitude: float, orientation: float, nr_of_bins=9, signed=True):
+    '''
+    
+    '''
+    steps = 360 / nr_of_bins
+    if signed:
+        steps = steps / 2
+
+    l_bin = int(orientation/steps) % 9
+    r_bin = (int(orientation/steps) + 1) % 9
+
+    l_vote = ((steps - orientation % steps) / steps) * magnitude
+    r_vote = ((orientation % steps) / steps) * magnitude
+
+    # print(f'{l_bin}, {l_vote}')
+    # print(f'{r_bin}, {r_vote}')
+
+    return (l_bin, l_vote), (r_bin, r_vote)
+
+
+def binning(cells_magn, cells_ang):
+    if len(cells_magn) != len(cells_ang):
+        return 1
+    
+    histogram = np.zeros(shape=(len(cells_magn), 9))
+    # histogram = np.zeros(9)
+
+    
+    # iterate over the cells
+    for cell, ang, hist_index in zip(cells_magn, cells_ang, range(len(cells_magn))):
+        if len(cell) != len(ang):
+            return 1
+
+        # loop through the cell values
+        for i in range(len(cell)):
+            for j in range(len(cell[i])):
+                left, right = interpolate(cell[i][j], ang[i][j], nr_of_bins=9, signed=True)                
+                histogram[hist_index][left[0]] += left[1]
+                histogram[hist_index][right[0]] += right[1]
+                
+    return histogram
+
+def block_normalization(blocks):
+    pass
+
+
+# MAIN---------------------------------------------------------------------------------------------------------------
 def main():
     img = cv2.imread('./data/man.png')
     # img = cv2.imread('./data/pedestrians.jpg')
     # plot(img, 'normal')
 
     # Create a black image
-    # img = np.zeros((640, 480, 3))
+    # img = np.zeros((640, 480, 3))add
     # # ... and make a white rectangle in it
     # img[100: -100, 80: -80] = 1
 
@@ -139,9 +195,13 @@ def main():
 
     # grad_red, grad_green, grad_blue, grad_mag = compute_gradients(img)
     grad_mag, grad_ang = compute_gradients(img)
-    # plot(grad_mag, 'grad opt')
+
+    plot(grad_mag, 'grad opt')
     # plot(grad_ang, 'grad ang')
-    orientation_binning(grad_mag, grad_ang)
+    cells_mag, cells_ang = cells(grad_mag, grad_ang)
+    hist = binning(cells_mag, cells_ang)
+    # plt.figure()
+    # plt.hist(hist[0], bins = np.arange(0,9))
 
     # plot(convolve_sobel(img), 'convolve')
     plt.show()
