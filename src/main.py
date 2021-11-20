@@ -15,6 +15,8 @@ from PIL import Image
 import numpy as np
 import cv2
 
+epsilon = 1e-05
+
 
 def plot(img: np.ndarray, title: str):
     plt.figure()
@@ -32,22 +34,6 @@ def add_border(img: np.ndarray, border_size: int):
         border_img[x+1][y+1] = value
 
     return border_img
-
-
-def convolve_sobel(img: np.ndarray):
-    sobel_kernel = np.array([[1,  0, -1],  # row 1
-                             [-2, 0, -2],  # row 2
-                             [1,  0, -1]])  # row 3
-
-    kernel_x = np.array([[-1, 0, 1]])
-    kernel_y = np.array([[-1],
-                         [0],
-                         [1]])
-
-    res_x = scipy.signal.convolve2d(img[:, :, 0], kernel_x, mode='same')
-    res_y = scipy.signal.convolve2d(img[:, :, 0], kernel_y, mode='same')
-
-    return np.hypot(res_x, res_y)
 
 
 def load_image(infilename):
@@ -87,9 +73,9 @@ def compute_gradients(img):
     # compute horizontal and vertical gradients for each color channel
     for i in range(3):
         grad_x.append(scipy.signal.convolve2d(
-            img[:, :, i], kernel_x, mode='same'))
+            img[:, :, i], kernel_x, mode='same', boundary='symm'))
         grad_y.append(scipy.signal.convolve2d(
-            img[:, :, i], kernel_y, mode='same'))
+            img[:, :, i], kernel_y, mode='same', boundary='symm'))
 
     # check for the largest norm
     for i in range(height):
@@ -102,23 +88,25 @@ def compute_gradients(img):
             index_max = max(range(len(magnitudes)), key=magnitudes.__getitem__)
             res_magn[i, j] = magnitudes[index_max]
 
-            res_ang[i, j] = abs(np.arctan2(
-                grad_y[index_max][i][j], grad_x[index_max][i][j]))
-            res_ang[i, j] = (res_ang[i, j] * 360) / (2*np.pi)
-            # res_ang[i, j] =
+            res_ang[i, j] = abs(np.arctan(
+                grad_y[index_max][i][j]/ (grad_x[index_max][i][j] + epsilon)))
+            # print(f'({grad_y[index_max][i][j]}, {grad_x[index_max][i][j] + epsilon}): {res_ang[i,j]}')
+            # print(type(grad_y[index_max][i][j]))
+            res_ang[i, j] = (res_ang[i, j] * 180) / (np.pi)
+
     # return np.hypot(grad_x[0], grad_y[0]), np.hypot(grad_x[1], grad_y[1]), np.hypot(grad_x[2], grad_y[2]), res_magn
     return grad_x[0], grad_y[0], res_magn, res_ang
 
 # ORIENTATION BINNING------------------------------------------------------------------------------------------------
 
 
-def cells(magnitudes, orientations, nr_of_bins=9, cell_size=8):
+def cells(magnitudes, angles, nr_of_bins=9, cell_size=8):
     '''
     divides the image into cells of size cell_size x cell_size
     '''
     y, x = magnitudes.shape
 
-    if magnitudes.shape != orientations.shape or 2*x != y:
+    if magnitudes.shape != angles.shape or 2*x != y:
         return 1
 
     hist = np.zeros(nr_of_bins)
@@ -134,7 +122,7 @@ def cells(magnitudes, orientations, nr_of_bins=9, cell_size=8):
             cells_mag.append(
                 magnitudes[j*cell_size:((j+1)*cell_size), i*cell_size:((i+1)*cell_size)])
             cells_ang.append(
-                orientations[j*cell_size:((j+1)*cell_size), i*cell_size:((i+1)*cell_size)])
+                angles[j*cell_size:((j+1)*cell_size), i*cell_size:((i+1)*cell_size)])
 
     return cells_mag, cells_ang
 
@@ -147,7 +135,8 @@ def interpolate(magnitude: float, orientation: float, nr_of_bins=9, signed=True)
     if signed:
         steps = steps / 2
 
-    orientation = int(orientation)
+    # orientation = int(np.rad2deg(orientation))
+    # orientation = int(orientation)
 
     l_bin = int(orientation/steps) % 9
     r_bin = (int(orientation/steps) + 1) % 9
@@ -192,7 +181,7 @@ def l2_norm(vector):
     '''
     squared = [val ** 2 for val in vector]
     norm = np.sqrt(sum(squared))
-    return [val / norm for val in vector]
+    return [val / (norm + epsilon) for val in vector]
 
 
 def block_normalization(block_hists, nr_of_bins=9, stride=8):
@@ -200,7 +189,6 @@ def block_normalization(block_hists, nr_of_bins=9, stride=8):
     Returns the normalized
     '''
     rows, columns, bins = block_hists.shape
-    # feature_descriptor = np.zeros(shape= ())
     feature_descriptor = []
 
     for row in range(rows-1):
@@ -231,8 +219,12 @@ def visualize(g_row, g_col, orientation_histogram):
     n_cells_row = int(s_row // c_row)  # number of cells along row-axis
     n_cells_col = int(s_col // c_col)  # number of cells along col-axis
     
-    plt.figure()
-    plt.bar(np.arange(0,9), orientation_histogram[0][0])
+    # plt.figure()
+    # plt.bar(np.arange(0,9), orientation_histogram[0][0])
+
+    # print(orientation_histogram.shape)
+    # i,j,k = np.unravel_index(orientation_histogram.argmax(), orientation_histogram.shape)
+    # print(orientation_histogram[i][j][k])
 
     # compute orientations integral images
     orientation_histogram = np.zeros((n_cells_row, n_cells_col, orientations),
@@ -244,9 +236,13 @@ def visualize(g_row, g_col, orientation_histogram):
                                 n_cells_col, n_cells_row,
                                 orientations, orientation_histogram)
 
-    plt.figure()
-    plt.bar(np.arange(0,9), orientation_histogram[0][0])
-    plt.show()
+    # i,j, k = np.unravel_index(orientation_histogram.argmax(), orientation_histogram.shape)
+    # print(orientation_histogram[i][j][k])
+
+    # plt.figure()
+    # plt.bar(np.arange(0,9), orientation_histogram[0][0])
+    # print(orientation_histogram.shape)
+    # plt.show()
 
     radius = min(c_row, c_col) // 2 - 1
     orientations_arr = np.arange(orientations)
@@ -254,8 +250,8 @@ def visualize(g_row, g_col, orientation_histogram):
     orientation_bin_midpoints = (
         np.pi * (orientations_arr + .5) / orientations)
 
-    dr_arr = radius * np.sin(orientation_bin_midpoints)
-    dc_arr = radius * np.cos(orientation_bin_midpoints)
+    dr_arr = radius * np.cos(orientation_bin_midpoints)
+    dc_arr = radius * np.sin(orientation_bin_midpoints)
 
     hog_image = np.zeros((s_row, s_col), dtype=float)
 
@@ -276,8 +272,8 @@ def visualize(g_row, g_col, orientation_histogram):
 
 
 def main():
-    img = cv2.imread('./data/b.png')
-    # img = cv2.imread('./data/man.png')
+    # img = cv2.imread('./data/b.png')
+    img = cv2.imread('./data/man.png')
     # img = cv2.imread('./data/pedestrians.jpg')
     # plot(img, 'normal')
 
@@ -297,6 +293,8 @@ def main():
     cells_mag, cells_ang = cells(grad_mag, grad_ang)
     hist = binning(cells_mag, cells_ang)
 
+ 
+
     plot(visualize(g_row, g_col, hist), 'HG')
     final_descr = block_normalization(hist)
 
@@ -309,7 +307,7 @@ def main():
 
     fd, hog_image = hog(img, orientations=9, pixels_per_cell=(8, 8),
                         cells_per_block=(2, 2), visualize=True, multichannel=True)
-    plt.axis("off")
+    # plt.axis("off")
     plot(hog_image, 'HOG')
     
     # plt.figure()
