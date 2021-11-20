@@ -56,7 +56,7 @@ def preprocess(img: np.ndarray, normalize=False):
 
 def compute_gradients(img):
     '''
-    Returns the magnitudes and angles
+    Returns the magnitude- and angle image
     '''
     kernel_x = np.array([[-1, 0, 1]])
     kernel_y = np.array([[-1],
@@ -89,20 +89,21 @@ def compute_gradients(img):
             res_magn[i, j] = magnitudes[index_max]
 
             res_ang[i, j] = abs(np.arctan(
-                grad_y[index_max][i][j]/ (grad_x[index_max][i][j] + epsilon)))
-            # print(f'({grad_y[index_max][i][j]}, {grad_x[index_max][i][j] + epsilon}): {res_ang[i,j]}')
-            # print(type(grad_y[index_max][i][j]))
+                grad_y[index_max][i][j]/ (grad_x[index_max][i][j]+ epsilon)))
+            
+            # convert radians to degree
             res_ang[i, j] = (res_ang[i, j] * 180) / (np.pi)
 
     # return np.hypot(grad_x[0], grad_y[0]), np.hypot(grad_x[1], grad_y[1]), np.hypot(grad_x[2], grad_y[2]), res_magn
-    return grad_x[0], grad_y[0], res_magn, res_ang
+    return grad_x[1], grad_y[1], res_magn, res_ang
 
 # ORIENTATION BINNING------------------------------------------------------------------------------------------------
 
 
 def cells(magnitudes, angles, nr_of_bins=9, cell_size=8):
     '''
-    divides the image into cells of size cell_size x cell_size
+    Divides the image into cells of size (cell_size x cell_size).
+    Returns the cell representation of the magnitude- and angle image.
     '''
     y, x = magnitudes.shape
 
@@ -130,6 +131,7 @@ def cells(magnitudes, angles, nr_of_bins=9, cell_size=8):
 def interpolate(magnitude: float, orientation: float, nr_of_bins=9, signed=True):
     '''
     Splits the magnitude value into left and right value according to their contribution to the adjacent bins.
+    Returns 2 tuples which indicate the bin_index and the vote/value that goes into the bins.
     '''
     steps = 360 / nr_of_bins
     if signed:
@@ -151,6 +153,10 @@ def interpolate(magnitude: float, orientation: float, nr_of_bins=9, signed=True)
 
 
 def binning(cells_magn, cells_ang):
+    '''
+    Performs the Spatial/Orientation binning.
+    Returns the histograms of each cell.
+    '''
     if len(cells_magn) != len(cells_ang):
         return 1
 
@@ -186,7 +192,8 @@ def l2_norm(vector):
 
 def block_normalization(block_hists, nr_of_bins=9, stride=8):
     '''
-    Returns the normalized
+    Normalizes the cells using the 16x16 block normalization.
+    Returns the final feature descriptor vector.
     '''
     rows, columns, bins = block_hists.shape
     feature_descriptor = []
@@ -273,7 +280,8 @@ def visualize(g_row, g_col, orientation_histogram):
 
 def main():
     # img = cv2.imread('./data/b.png')
-    img = cv2.imread('./data/man.png')
+    # img = cv2.imread('./data/man.png')
+    img = cv2.imread('./data/zebra.png')
     # img = cv2.imread('./data/pedestrians.jpg')
     # plot(img, 'normal')
 
@@ -289,13 +297,13 @@ def main():
     g_row, g_col, grad_mag, grad_ang = compute_gradients(img)
 
     plot(grad_mag, 'grad opt')
-    # plot(grad_ang, 'grad ang')
+    plot(grad_ang, 'grad ang')
     cells_mag, cells_ang = cells(grad_mag, grad_ang)
     hist = binning(cells_mag, cells_ang)
 
  
 
-    plot(visualize(g_row, g_col, hist), 'HG')
+    plot(visualize(g_row, g_col, hist), 'My version')
     final_descr = block_normalization(hist)
 
     # free up memory
@@ -310,11 +318,12 @@ def main():
     # plt.axis("off")
     plot(hog_image, 'HOG')
     
-    # plt.figure()
-    # plt.hist(final_descr)
-    # plt.figure()
-    # plt.hist(fd)
+    plt.figure()
+    plt.hist(final_descr, color='orange')
+    plt.figure()
+    plt.hist(fd)
 
+    # print(type(fd[0]))
     plt.show()
 
 
